@@ -1,6 +1,6 @@
 {
   "name": "web-surface-scan",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -17,6 +17,10 @@
     "name": "Melvin Jones Repol",
     "email": "mrepol742@gmail.com",
     "url": "https://mrepol742.github.io"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrepol742/web-surface-scan.git"
   },
   "license": "MIT",
   "type": "commonjs",
