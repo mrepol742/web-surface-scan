@@ -13,11 +13,12 @@ const STABILITY_WAIT_MS = 4_000;
  * Crawls the given URL and extracts various pieces of information about the page,
  *
  * @param url The URL to crawl and analyze.
+ * @param headless Whether to run the browser in headless mode (default: true). Running in headless mode can be faster and consume fewer resources, but may cause some websites to behave differently. Set to false for debugging or if you encounter issues with headless mode.
  * @returns An object containing the original URL, detected technologies, schema types, meta integrations, forms, links, and HTML length.
  */
-export async function crawl(url: string) {
+export async function crawl(url: string, headless: boolean) {
   const browser = await chromium.launch({
-    headless: process.env.HEADLESS === "true",
+    headless: headless ?? process.env.HEADLESS === "true",
     slowMo: 50,
   });
 

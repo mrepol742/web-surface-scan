@@ -3,13 +3,16 @@ import "dotenv/config";
 import { crawl } from "./core/crawler";
 import logger from "./utils/logger";
 
-const target = process.argv[2];
+const args = process.argv.slice(2);
 
+const target = args[0];
 if (!target) {
-  console.error("Usage: npm start <url> --headless");
-  console.error("Example: npm start https://example.com");
+  console.error("Usage: npx web-surface-scan <url> [--headless]");
+  console.error("Example: npx web-surface-scan https://example.com --headless");
   process.exit(1);
 }
+
+const headless = args.includes("--headless");
 
 const formatList = (items: string[], emptyLabel = "None"): string =>
   items.length ? items.join(", ") : emptyLabel;
@@ -24,7 +27,7 @@ const formatSection = (title: string, lines: string[]): string => {
 (async () => {
   logger.info(`🚀 Starting scan for: ${target}`);
 
-  const result = await crawl(target);
+  const result = await crawl(target, headless);
 
   const schemaLines = result.schemaTypes.map(
     (t) => `${t.type} (${t.count} occurrence${t.count === 1 ? "" : "s"})`,

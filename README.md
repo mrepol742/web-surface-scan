@@ -11,13 +11,13 @@ You can install and run the tool in two ways:
 ### Run via NPX
 
 ```sh
-npx web-surface-scan <target-website-url>
+npx web-surface-scan <target-website-url> [--headless]
 ```
 
 or using the alias:
 
 ```sh
-npx wss <target-website-url>
+npx wss <target-website-url> [--headless]
 ```
 
 ### Run locally (development)
@@ -30,19 +30,26 @@ npm install
 npx playwright install
 
 npm run build
-node dist/index.js <target-website-url>
+npm run start -- <target-website-url> [--headless]
+```
+
+### Development
+To run the tool in development mode:
+
+```sh
+npm run dev -- <target-website-url> [--headless]
 ```
 
 ## Usage
 
 ```sh
-web-surface-scan <target-website-url>
+web-surface-scan <target-website-url> [--headless]
 ```
 
 Or if using NPX:
 
 ```sh
-npx web-surface-scan <target-website-url>
+npx web-surface-scan <target-website-url> [--headless]
 ```
 
 ## Disclaimer
