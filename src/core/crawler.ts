@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import { setupNetworkDetection, analyzePage, detectTailwind } from "./analyze";
 import { detectSchemaTypes } from "../detectors/schema";
 import { detectMetaIntegrations } from "../detectors/metadata";
-import { detectForms } from "../detectors/forms";
+import { DetectedForm, detectForms } from "../detectors/forms";
 import { detectBackendFrameworks } from "../detectors/backend";
 import { isSameDomainOrSubdomain, normalizeUrl } from "../utils/helpers";
 
@@ -16,7 +16,18 @@ const STABILITY_WAIT_MS = 4_000;
  * @param headless Whether to run the browser in headless mode (default: true). Running in headless mode can be faster and consume fewer resources, but may cause some websites to behave differently. Set to false for debugging or if you encounter issues with headless mode.
  * @returns An object containing the original URL, detected technologies, schema types, meta integrations, forms, links, and HTML length.
  */
-export async function crawl(url: string, headless: boolean) {
+export async function crawl(
+  url: string,
+  headless: boolean,
+): Promise<{
+  url: string;
+  tech: string[];
+  schemaTypes: string[];
+  integrations: string[];
+  forms: DetectedForm[];
+  links: string[];
+  htmlLength: number;
+}> {
   const browser = await chromium.launch({
     headless: headless ?? process.env.HEADLESS === "true",
     slowMo: 50,
