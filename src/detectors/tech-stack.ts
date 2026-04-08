@@ -1,5 +1,11 @@
 import * as cheerio from "cheerio";
 
+/**
+ * Detects the tech stack used by a website based on its HTML content.
+ *
+ * @param html The HTML content of the webpage to analyze.
+ * @returns An array of detected technologies (e.g., ["Next.js", "Angular", "Vue"]) or an empty array if not detected.
+ */
 export function detectTech(html: string) {
   const $ = cheerio.load(html);
 

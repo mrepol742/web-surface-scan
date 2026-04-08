@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import "dotenv/config";
 import { crawl } from "./core/crawler";
 import logger from "./utils/logger";
@@ -10,41 +11,62 @@ if (!target) {
   process.exit(1);
 }
 
+const formatList = (items: string[], emptyLabel = "None"): string =>
+  items.length ? items.join(", ") : emptyLabel;
+
+const formatSection = (title: string, lines: string[]): string => {
+  const content = lines.length
+    ? lines.map((line) => `  • ${line}`).join("\n")
+    : "  • None";
+  return `${title}\n${content}`;
+};
+
 (async () => {
-  logger.info(`Starting scan for ${target}`);
+  logger.info(`🚀 Starting scan for: ${target}`);
+
   const result = await crawl(target);
 
-  logger.info(
-    `Detected Technologies: ${result.tech.length > 0 ? result.tech.join(", ") : "None"}`,
+  const schemaLines = result.schemaTypes.map(
+    (t) => `${t.type} (${t.count} occurrence${t.count === 1 ? "" : "s"})`,
   );
 
-  logger.info("Schema.org Types:");
-  if (result.schemaTypes.length > 0) {
-    result.schemaTypes.forEach((t) =>
-      logger.debug(`- ${t.type} (${t.count} occurrences)`),
-    );
-  } else {
-    logger.debug("None");
-  }
-
-  logger.info(
-    `Meta Integrations: ${result.integrations.length > 0 ? result.integrations.join(", ") : "None"}`,
+  const formLines = result.forms.map(
+    (f) =>
+      `${f.type} form with ${f.inputs.length} input${
+        f.inputs.length === 1 ? "" : "s"
+      }${f.honeypot ? " [honeypot]" : ""}${f.hidden ? " [hidden]" : ""}`,
   );
 
-  logger.info("Forms:");
-  if (result.forms.length > 0) {
-    result.forms.forEach((f, i) =>
-      logger.debug(
-        `- Form ${i + 1}: action=${f.action}, type=${f.type}, inputs=[${f.inputs.join(", ")}]`,
-      ),
-    );
-  } else {
-    logger.debug("None");
-  }
+  const sampleLinks = result.links.slice(0, 10);
+  const linkLines = sampleLinks.length
+    ? sampleLinks.map((link, i) => `${i + 1}. ${link}`)
+    : [];
 
-  logger.info(`HTML Length: ${result.htmlLength} characters`);
-  logger.info(`Total Links Detected: ${result.links.length}`);
+  logger.info("=".repeat(64));
+  logger.info("📊 Scan Report");
+  logger.info("=".repeat(64));
 
-  logger.info("Sample Links:");
-  logger.info(result.links.slice(0, 10).join("\n\t"));
+  logger.info(
+    formatSection("Detected Technologies", [formatList(result.tech)]),
+  );
+
+  logger.info(formatSection("Schema.org Types", schemaLines));
+
+  logger.info(
+    formatSection("Meta Integrations", [formatList(result.integrations)]),
+  );
+
+  logger.info(formatSection("Forms", formLines));
+
+  logger.info(
+    formatSection("Page Metrics", [
+      `HTML Length: ${result.htmlLength.toLocaleString()} characters`,
+      `Total Links Detected: ${result.links.length.toLocaleString()}`,
+    ]),
+  );
+
+  logger.info(formatSection("Sample Links (up to 10)", linkLines));
+
+  logger.info("=".repeat(64));
+  logger.info("✅ Scan complete");
 })();

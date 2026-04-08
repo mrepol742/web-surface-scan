@@ -1,5 +1,11 @@
 import { Page } from "playwright";
 
+/**
+ * Network detection: listens to all network requests and looks for patterns in URLs that indicate the use of specific technologies (e.g., WordPress, Next.js, Google Analytics).
+ *
+ * @param page The Playwright Page object to analyze.
+ * @returns A Set of detected technologies based on network requests (e.g., "WordPress", "Google Analytics"). Note that this is a Set to avoid duplicates, and it may be empty if no known patterns are detected.
+ */
 export function setupNetworkDetection(page: Page) {
   const detected = new Set<string>();
 
@@ -43,6 +49,9 @@ export function setupNetworkDetection(page: Page) {
 
 /**
  * Runtime detection: checks window globals for frontend frameworks and libraries
+ *
+ * @param page The Playwright Page object to analyze.
+ * @returns An array of detected technologies (e.g., ["React", "jQuery"]) or an empty array if not detected.
  */
 export async function analyzePage(page: Page) {
   return await page.evaluate(() => {
@@ -64,7 +73,10 @@ export async function analyzePage(page: Page) {
 }
 
 /**
- * Tailwind detection via DOM class patterns
+ * Detects Tailwind CSS usage by looking for common class name patterns in the DOM.
+ *
+ * @param page The Playwright Page object to analyze.
+ * @returns An array of detected technologies (e.g., ["Tailwind"]) or an empty array if not detected.
  */
 export async function detectTailwind(page: Page) {
   const hasTailwind = await page.evaluate(() =>

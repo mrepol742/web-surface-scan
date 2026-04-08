@@ -4,7 +4,17 @@ import { detectSchemaTypes } from "../detectors/schema";
 import { detectMetaIntegrations } from "../detectors/metadata";
 import { detectForms } from "../detectors/forms";
 import { detectBackendFrameworks } from "../detectors/backend";
+import { isSameDomainOrSubdomain, normalizeUrl } from "../utils/helpers";
 
+const NAVIGATION_TIMEOUT_MS = 25_000;
+const STABILITY_WAIT_MS = 4_000;
+
+/**
+ * Crawls the given URL and extracts various pieces of information about the page,
+ *
+ * @param url The URL to crawl and analyze.
+ * @returns An object containing the original URL, detected technologies, schema types, meta integrations, forms, links, and HTML length.
+ */
 export async function crawl(url: string) {
   const browser = await chromium.launch({
     headless: process.env.HEADLESS === "true",
@@ -12,40 +22,68 @@ export async function crawl(url: string) {
   });
 
   const page = await browser.newPage();
-  const detectedNetwork = setupNetworkDetection(page);
-  await page.goto(url, { waitUntil: "networkidle" });
-  const html = await page.content();
+  page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
+  page.setDefaultTimeout(NAVIGATION_TIMEOUT_MS);
 
-  const [runtimeTech, tailwindTech, schemaTypes, integrations, forms] =
-    await Promise.all([
-      analyzePage(page),
-      detectTailwind(page),
-      detectSchemaTypes(page),
-      detectMetaIntegrations(page),
-      detectForms(page),
+  try {
+    const detectedNetwork = setupNetworkDetection(page);
+
+    // Fast, reliable initial load
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: NAVIGATION_TIMEOUT_MS,
+    });
+
+    // Best-effort quiet period; do not fail if page is constantly noisy
+    await page
+      .waitForLoadState("networkidle", { timeout: STABILITY_WAIT_MS })
+      .catch(() => undefined);
+
+    const finalUrl = page.url();
+    const wasRedirected = normalizeUrl(finalUrl) !== normalizeUrl(url);
+    const redirectedOutsideDomain =
+      wasRedirected && !isSameDomainOrSubdomain(url, finalUrl);
+
+    if (redirectedOutsideDomain) {
+      throw new Error(
+        `Scan aborted: redirected outside allowed domain.\nSubmitted: ${url}\nFinal: ${finalUrl}`,
+      );
+    }
+
+    const html = await page.content();
+
+    const [runtimeTech, tailwindTech, schemaTypes, integrations, forms] =
+      await Promise.all([
+        analyzePage(page),
+        detectTailwind(page),
+        detectSchemaTypes(page),
+        detectMetaIntegrations(page),
+        detectForms(page),
+      ]);
+
+    const links = await page.$$eval("a", (anchors) =>
+      anchors.map((a) => (a as HTMLAnchorElement).href),
+    );
+
+    const backend = await detectBackendFrameworks(page);
+    const allTech = new Set<string>([
+      ...backend,
+      ...runtimeTech,
+      ...Array.from(detectedNetwork),
+      ...tailwindTech,
     ]);
 
-  const links = await page.$$eval("a", (anchors) =>
-    anchors.map((a) => (a as HTMLAnchorElement).href),
-  );
-
-  const backend = await detectBackendFrameworks(page);
-  const allTech = new Set<string>([
-    ...backend,
-    ...runtimeTech,
-    ...Array.from(detectedNetwork),
-    ...tailwindTech,
-  ]);
-
-  await browser.close();
-
-  return {
-    url,
-    tech: Array.from(allTech),
-    schemaTypes,
-    integrations,
-    forms,
-    links: Array.from(new Set(links)).slice(0, 50),
-    htmlLength: html.length,
-  };
+    return {
+      url,
+      tech: Array.from(allTech),
+      schemaTypes,
+      integrations,
+      forms,
+      links: Array.from(new Set(links)).slice(0, 50),
+      htmlLength: html.length,
+    };
+  } finally {
+    await page.close().catch(() => undefined);
+    await browser.close().catch(() => undefined);
+  }
 }

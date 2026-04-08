@@ -1,5 +1,11 @@
 import { Page } from "playwright";
 
+/**
+ * Backend framework detection: looks for telltale signs of popular backend frameworks in HTTP response headers and HTML content (e.g., "X-Powered-By" header, specific meta tags, or hidden inputs).
+ *
+ * @param page The Playwright Page object to analyze.
+ * @returns An array of detected backend frameworks (e.g., ["Express", "PHP"]) or an empty array if not detected.
+ */
 export async function detectBackendFrameworks(page: Page) {
   const detected = new Set<string>();
 

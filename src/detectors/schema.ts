@@ -1,5 +1,11 @@
 import { Page } from "playwright";
 
+/**
+ * Schema.org detection: parses JSON-LD scripts to identify the types of structured data used on the page (e.g., "Article", "Product", "Event") and counts their occurrences.
+ *
+ * @param page The Playwright Page object to analyze.
+ * @returns An array of detected schema types with their counts (e.g., [{ type: "Article", count: 3 }, { type: "Product", count: 1 }]) or an empty array if not detected.
+ */
 export async function detectSchemaTypes(page: Page) {
   const typesCount = await page.evaluate(() => {
     const results: Record<string, number> = {};

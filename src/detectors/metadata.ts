@@ -1,5 +1,11 @@
 import { Page } from "playwright";
 
+/**
+ * Metadata-based integration detection: scans for specific meta tags and link tags that indicate the presence of integrations like Google Search Console, Bing Webmaster Tools, security scanners, or analytics platforms.
+ *
+ * @param page The Playwright Page object to analyze.
+ * @returns An array of detected integrations based on meta and link tags (e.g., ["Google Search Console", "Norton Web Security"]) or an empty array if not detected.
+ */
 export async function detectMetaIntegrations(page: Page) {
   return await page.evaluate(() => {
     const detected: string[] = [];
