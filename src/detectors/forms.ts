@@ -1,25 +1,31 @@
 import { Page } from "playwright";
 
-type DetectedInput = {
+export type DetectedInput = {
   name: string;
   type: string;
   id: string;
   placeholder: string;
   hidden: boolean;
   honeypot: boolean;
+  recaptcha: boolean;
 };
 
-type DetectedFormGroup = {
+export type DetectedForm = {
   source: "form" | "orphan-input-group";
   action: string;
+  method: string;
   type: string;
   hidden: boolean;
   honeypot: boolean;
-  inputs: string[];
-  fields: DetectedInput[];
+  recaptcha: boolean;
+  inputs: DetectedInput[];
 };
 
-export async function detectForms(page: Page): Promise<DetectedFormGroup[]> {
+export type DetectFormsResult = {
+  forms: DetectedForm[];
+};
+
+export async function detectForms(page: Page): Promise<DetectFormsResult> {
   return await page.evaluate(() => {
     const normalize = (v: string | null | undefined) => (v || "").trim();
     const lower = (v: string | null | undefined) => normalize(v).toLowerCase();
@@ -37,7 +43,7 @@ export async function detectForms(page: Page): Promise<DetectedFormGroup[]> {
       );
     };
 
-    // keep your honeypot logic exactly as before (same checks)
+    // Keep your honeypot checks exactly as-is
     const hasHoneypotSignals = (
       className: string,
       id: string,
@@ -85,6 +91,33 @@ export async function detectForms(page: Page): Promise<DetectedFormGroup[]> {
       return "unknown";
     };
 
+    const isRecaptchaInput = (i: HTMLInputElement): boolean => {
+      const tokens = [
+        normalize(i.name),
+        normalize(i.id),
+        normalize(i.className),
+        normalize(i.getAttribute("data-sitekey")),
+        normalize(i.getAttribute("data-callback")),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        tokens.includes("recaptcha") ||
+        tokens.includes("g-recaptcha") ||
+        tokens.includes("h-captcha") ||
+        tokens.includes("hcaptcha")
+      );
+    };
+
+    const hasRecaptchaInContainer = (container: Element): boolean => {
+      return Boolean(
+        container.querySelector(
+          ".g-recaptcha, .h-captcha, iframe[src*='recaptcha'], iframe[src*='hcaptcha'], textarea[name='g-recaptcha-response'], textarea[name='h-captcha-response'], input[name='g-recaptcha-response'], input[name='h-captcha-response']",
+        ),
+      );
+    };
+
     const mapInput = (i: HTMLInputElement): DetectedInput => {
       const name = normalize(i.name);
       const type = normalize(i.type) || "unknown";
@@ -96,22 +129,25 @@ export async function detectForms(page: Page): Promise<DetectedFormGroup[]> {
         .join(" ");
       const hidden = isElementHidden(i);
 
-      // input-level honeypot flag using the SAME keyword checks
+      // keep input honeypot check style unchanged
       const honeypot =
         hidden ||
         tokens.includes("honeypot") ||
         tokens.includes("_honeypot") ||
         tokens.includes("_honey");
 
-      return { name, type, id, placeholder, hidden, honeypot };
+      const recaptcha = isRecaptchaInput(i);
+
+      return { name, type, id, placeholder, hidden, honeypot, recaptcha };
     };
 
-    const forms = Array.from(
+    const formElements = Array.from(
       document.querySelectorAll<HTMLFormElement>("form"),
     );
 
-    const detectedForms: DetectedFormGroup[] = forms.map((form) => {
+    const forms: DetectedForm[] = formElements.map((form) => {
       const action = form.action || window.location.href;
+      const method = (form.method || "get").toLowerCase();
       const style = window.getComputedStyle(form);
       const className = normalize(form.className);
       const id = normalize(form.id);
@@ -119,10 +155,11 @@ export async function detectForms(page: Page): Promise<DetectedFormGroup[]> {
       const inputEls = Array.from(
         form.querySelectorAll<HTMLInputElement>("input"),
       );
-      const fields = inputEls.map(mapInput);
+      const inputs = inputEls.map(mapInput);
 
-      const inputs = fields.map((f) => f.type || f.name || "unknown");
-      const inputNamesJoined = inputs.map((i) => i.toLowerCase()).join(" ");
+      const inputNamesJoined = inputs
+        .map((i) => `${i.type} ${i.name}`.toLowerCase())
+        .join(" ");
 
       const formHidden = isElementHidden(form);
       const formHoneypot = hasHoneypotSignals(
@@ -137,36 +174,41 @@ export async function detectForms(page: Page): Promise<DetectedFormGroup[]> {
         lower(form.getAttribute("name")),
         lower(form.getAttribute("id")),
         lower(form.getAttribute("class")),
-        ...fields.map((f) =>
-          `${f.name} ${f.type} ${f.id} ${f.placeholder}`.toLowerCase(),
+        ...inputs.map((i) =>
+          `${i.name} ${i.type} ${i.id} ${i.placeholder}`.toLowerCase(),
         ),
       ].join(" ");
 
       let type = inferType(haystack);
       if (formHoneypot) type = "honeypot";
 
+      const formRecaptcha =
+        hasRecaptchaInContainer(form) || inputs.some((i) => i.recaptcha);
+
       return {
         source: "form",
         action,
+        method,
         type,
         hidden: formHidden,
         honeypot: formHoneypot,
+        recaptcha: formRecaptcha,
         inputs,
-        fields,
       };
     });
 
-    // Orphan inputs (inputs not inside any form)
+    // Keep orphan input support for pages with no <form>
     const orphanInputs = Array.from(
       document.querySelectorAll<HTMLInputElement>("input"),
     ).filter((i) => !i.closest("form"));
 
     if (orphanInputs.length > 0) {
-      const fields = orphanInputs.map(mapInput);
-      const inputs = fields.map((f) => f.type || f.name || "unknown");
-      const inputNamesJoined = inputs.map((i) => i.toLowerCase()).join(" ");
+      const inputs = orphanInputs.map(mapInput);
 
-      // virtual group style to preserve your existing honeypot logic pattern
+      const inputNamesJoined = inputs
+        .map((i) => `${i.type} ${i.name}`.toLowerCase())
+        .join(" ");
+
       const virtualStyle = {
         display: "",
         visibility: "",
@@ -179,25 +221,32 @@ export async function detectForms(page: Page): Promise<DetectedFormGroup[]> {
         inputNamesJoined,
         virtualStyle,
       );
-      const haystack = fields
-        .map((f) =>
-          `${f.name} ${f.type} ${f.id} ${f.placeholder}`.toLowerCase(),
+
+      const haystack = inputs
+        .map((i) =>
+          `${i.name} ${i.type} ${i.id} ${i.placeholder}`.toLowerCase(),
         )
         .join(" ");
+
       let type = inferType(haystack);
       if (honeypot) type = "honeypot";
 
-      detectedForms.push({
+      const recaptcha =
+        hasRecaptchaInContainer(document.body) ||
+        inputs.some((i) => i.recaptcha);
+
+      forms.push({
         source: "orphan-input-group",
         action: window.location.href,
+        method: "get",
         type,
-        hidden: fields.every((f) => f.hidden),
+        hidden: inputs.every((i) => i.hidden),
         honeypot,
+        recaptcha,
         inputs,
-        fields,
       });
     }
 
-    return detectedForms;
+    return { forms };
   });
 }
