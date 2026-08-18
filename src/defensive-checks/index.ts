@@ -60,8 +60,13 @@ const runRecaptchaCheck = (links: string[]): DefensiveCheckResult => {
 };
 
 const runRateLimitCheck = (forms: DetectedForm[]): any => {
+  let count = 0;
   forms.map((form) => {
     while (true) {
+      count++;
+
+      logger.info(`🔍 #${count} Checking form action ${form.action} for potential rate limiting...`);
+
       const axiosInstance = axios.create({
         timeout: 5000,
         headers: {
