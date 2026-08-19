@@ -52,8 +52,13 @@ const askYesNo = async (question: string): Promise<boolean> => {
     (t) => `${t.type} (${t.count} occurrence${t.count === 1 ? "" : "s"})`,
   );
 
-  const formLines = result.forms.map(
-    (f) =>
+  const formLines = result.forms.forms.map(
+    (f: {
+      type: string;
+      inputs: any[];
+      honeypot: boolean;
+      hidden: boolean;
+    }) =>
       `${f.type} form with ${f.inputs.length} input${
         f.inputs.length === 1 ? "" : "s"
       }${f.honeypot ? " [honeypot]" : ""}${f.hidden ? " [hidden]" : ""}`,
@@ -100,7 +105,7 @@ const askYesNo = async (question: string): Promise<boolean> => {
   );
 
   if (shouldRunDefensiveChecks) {
-    await runDefensiveChecks(result.links, result.forms);
+    await runDefensiveChecks(result.links, result.forms.forms);
   } else {
     logger.info("Skipped defensive security checks.");
   }

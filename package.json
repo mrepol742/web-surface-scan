@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "test": "ts-node src/test/server.test.ts",
+    "test:emulate": "concurrently \"npm run test\" \"npm run dev -- http://localhost:3000 --headless\"",
+    "test:burst-request": "ts-node src/test/burst-request.test.ts -- http://localhost:3000"
   },
   "bin": {
     "web-surface-scan": "./dist/index.js",
@@ -25,7 +28,9 @@
   "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
+    "concurrently": "^9.2.1",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.2"
   },
@@ -35,6 +40,8 @@
     "cheerio": "^1.2.0",
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
     "playwright": "^1.58.2",
     "puppeteer": "^25.7.0",
     "winston": "^3.19.0"

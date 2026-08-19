@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import { setupNetworkDetection, analyzePage, detectTailwind } from "./analyze";
 import { detectSchemaTypes } from "../detectors/schema";
 import { detectMetaIntegrations } from "../detectors/metadata";
-import { DetectedForm, detectForms } from "../detectors/forms";
+import { DetectedForm, detectForms, DetectFormsResult } from "../detectors/forms";
 import { detectBackendFrameworks } from "../detectors/backend";
 import { isSameDomainOrSubdomain, normalizeUrl } from "../utils/helpers";
 
@@ -22,9 +22,12 @@ export async function crawl(
 ): Promise<{
   url: string;
   tech: string[];
-  schemaTypes: string[];
+  schemaTypes: {
+    type: string;
+    count: number;
+  }[];
   integrations: string[];
-  forms: DetectedForm[];
+  forms: DetectFormsResult;
   links: string[];
   htmlLength: number;
 }> {
